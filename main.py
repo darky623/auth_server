@@ -1,8 +1,7 @@
 from aiohttp_middlewares import cors_middleware
-from sqlalchemy import create_engine
-from routes import routes
-from aiohttp import web
+from routes import routes, engine
 from models import Base
+from aiohttp import web
 import config
 import ssl
 
@@ -26,8 +25,8 @@ async def shutdown(app):
 
 
 if __name__ == '__main__':
-    engine = create_engine(config.sqlite_database, echo=True)
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
     context = None
     if config.webhook_port == 443:
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
