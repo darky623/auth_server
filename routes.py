@@ -3,30 +3,34 @@ from sqlalchemy.orm import Session
 from aiohttp import web
 from models import User
 import config
+import json
 
 routes = web.RouteTableDef()
 engine = create_engine(config.sqlite_database, echo=True)
 
 
-async def validate_form_data(form_data, required_fields):
-    missing_fields = [field for field in required_fields if field not in form_data]
+async def validate_form_data(byte_str, required_fields):
+    decoded_str = byte_str.decode('utf-8')
+    try:
+        data = json.loads(decoded_str)
+    except json.decoder.JSONDecodeError as e:
+        return None, 'Ошибка декодирования'
+
+    missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
-        return False, f"{', '.join(missing_fields)} field(s) is missing"
+        return None, f"{', '.join(missing_fields)} field(s) is missing"
     else:
-        return True, None
+        return data, None
 
 
 @routes.post('/auth')
 async def auth_handler(request):
     byte_str = await request.read()
-    form_data = await request.post()
-    print("Raw: "+str(byte_str))
-    print("Form-data: "+str(form_data))
-    is_valid, message = await validate_form_data(form_data, ['username', 'password'])
-    if not is_valid:
+    data, message = await validate_form_data(byte_str, ['username', 'password'])
+    if not data:
         return web.HTTPBadRequest(text=message)
 
-    username, password = str(form_data['username']), str(form_data['password'])
+    username, password = str(data['username']), str(data['password'])
     with Session(autoflush=False, bind=engine) as db:
         user = db.query(User).filter(User.username == username, User.password == password).first()
         if not user:
@@ -37,12 +41,12 @@ async def auth_handler(request):
 
 @routes.post('/register')
 async def register_handler(request):
-    form_data = await request.post()
-    is_valid, message = await validate_form_data(form_data, ['email', 'username', 'password'])
-    if not is_valid:
+    byte_str = await request.read()
+    data, message = await validate_form_data(byte_str, ['email', 'username', 'password'])
+    if not data:
         return web.HTTPBadRequest(text=message)
 
-    email, username, password = str(form_data['email']), str(form_data['username']), str(form_data['password'])
+    email, username, password = str(data['email']), str(data['username']), str(data['password'])
     with Session(autoflush=False, bind=engine) as db:
         user = db.query(User).filter(User.username == username).first()
         if user:
