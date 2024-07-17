@@ -18,7 +18,11 @@ async def validate_form_data(form_data, required_fields):
 
 @routes.post('/auth')
 async def auth_handler(request):
+    byte_str = await request.read()
     form_data = await request.post()
+    print(request)
+    print("Raw: "+str(byte_str))
+    print("Form-data: "+str(form_data))
     is_valid, message = await validate_form_data(form_data, ['username', 'password'])
     if not is_valid:
         return web.HTTPBadRequest(text=message)
