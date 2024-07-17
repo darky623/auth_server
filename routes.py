@@ -20,7 +20,6 @@ async def validate_form_data(form_data, required_fields):
 async def auth_handler(request):
     byte_str = await request.read()
     form_data = await request.post()
-    print(str(request))
     print("Raw: "+str(byte_str))
     print("Form-data: "+str(form_data))
     is_valid, message = await validate_form_data(form_data, ['username', 'password'])
