@@ -6,7 +6,7 @@ from models import User, AuthSession, Server
 import config
 import json
 import hmac
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 routes = web.RouteTableDef()
@@ -32,6 +32,20 @@ def get_user_hash(data, secret_key=config.secret_key):
     user_hash = hmac.new(sha256(secret_key.encode()).digest(), data_check_string.encode(), sha256).hexdigest()
 
     return user_hash
+
+
+def check_auth_token(token: str):
+    user = None
+    with Session(autoflush=False, bind=engine) as db:
+        auth = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
+        print((datetime.now()-auth.create_date))
+        if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
+            user = auth.user
+        else:
+            auth.status = 'expired'
+            db.commit()
+
+    return user
 
 
 @routes.post('/auth')
@@ -87,3 +101,29 @@ async def register_handler(request):
         response["token"] = auth_session.token
 
         return web.json_response(response)
+
+
+@routes.get('/servers')
+async def servers_handler(request):
+    byte_str = await request.read()
+    response = {"message": "Please select a server", "servers": []}
+    data, message = validate_form_data(byte_str, ['token'])
+    if not data:
+        response["message"] = message
+        return web.json_response(response)
+
+    if not check_auth_token(data['token']):
+        response["message"] = "Token is invalid!"
+        return web.json_response(response)
+
+    with Session(autoflush=False, bind=engine) as db:
+        # Create test server
+        test_server = Server(address='31.129.54.121', name='#1 Alpha', create_date=datetime.now())
+        db.add(test_server)
+        db.commit()
+
+        for s in db.query(Server).filter(Server.status == 'active').all():
+            server = {"id": s.id, "name": s.name, "locale": s.locale, "address": s.address}
+            response["servers"].append(server)
+
+    return web.json_response(response)
