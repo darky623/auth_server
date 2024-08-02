@@ -46,12 +46,12 @@ def check_auth_token(token: str):
     user = None
     with Session(autoflush=False, bind=engine) as db:
         auth = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
-        print((datetime.now()-auth.create_date))
-        if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
-            user = auth.user
-        else:
-            auth.status = 'expired'
-            db.commit()
+        if auth:
+            if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
+                user = auth.user
+            else:
+                auth.status = 'expired'
+                db.commit()
 
     return user
 
