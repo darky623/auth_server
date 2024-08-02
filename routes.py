@@ -12,6 +12,12 @@ import uuid
 routes = web.RouteTableDef()
 engine = create_engine(config.sqlite_database, echo=True)
 
+# Create test server
+with Session(autoflush=False, bind=engine) as db:
+    test_server = Server(address='31.129.54.121', name='#1 Alpha', create_date=datetime.now())
+    db.add(test_server)
+    db.commit()
+
 
 def validate_form_data(byte_str, required_fields):
     decoded_str = byte_str.decode('utf-8')
@@ -117,11 +123,6 @@ async def servers_handler(request):
         return web.json_response(response)
 
     with Session(autoflush=False, bind=engine) as db:
-        # Create test server
-        test_server = Server(address='31.129.54.121', name='#1 Alpha', create_date=datetime.now())
-        db.add(test_server)
-        db.commit()
-
         for s in db.query(Server).filter(Server.status == 'active').all():
             server = {"id": s.id, "name": s.name, "locale": s.locale, "address": s.address}
             response["servers"].append(server)

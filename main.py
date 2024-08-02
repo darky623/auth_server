@@ -17,6 +17,7 @@ async def setup():
     app.middlewares.append(cors)
     app.add_routes(routes)
     app.on_cleanup.append(shutdown)
+
     return app
 
 
