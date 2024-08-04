@@ -147,5 +147,5 @@ async def servers_handler(request):
         return web.json_response(response)
 
     else:
-        response["user"] = user.__dict__
+        response["user"] = dict(user.__dict__)
         return web.json_response(response)
