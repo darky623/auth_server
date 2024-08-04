@@ -126,9 +126,8 @@ async def servers_handler(request):
         return web.json_response(response)
 
     with Session(autoflush=False, bind=engine) as db:
-        for s in db.query(Server).filter(Server.status == 'active').all():
-            server = {"id": s.id, "name": s.name, "locale": s.locale, "address": s.address}
-            response["servers"].append(server)
+        for server in db.query(Server).filter(Server.status == 'active').all():
+            response["servers"].append(server.serialize())
 
     return web.json_response(response)
 

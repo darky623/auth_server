@@ -57,3 +57,14 @@ class Server(Base):
     max_players = Column(Integer, default=1000)
     status = Column(String, default='active')
     create_date = Column(DateTime)
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'address': self.address,
+            'name': self.name,
+            'locale': self.locale,
+            'max_players': self.max_players,
+            'status': self.status,
+            'create_date': self.create_date.strftime('%d/%m/%Y %H:%M:%S')
+        }
