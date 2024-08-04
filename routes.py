@@ -1,12 +1,12 @@
+from models import User, AuthSession, Server
+from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from hashlib import sha256
 from aiohttp import web
-from models import User, AuthSession, Server
 import config
 import json
 import hmac
-from datetime import datetime, timedelta
 import uuid
 
 routes = web.RouteTableDef()
@@ -130,3 +130,22 @@ async def servers_handler(request):
             response["servers"].append(server)
 
     return web.json_response(response)
+
+
+@routes.get('/token')
+async def servers_handler(request):
+    byte_str = await request.read()
+    response = {"message": "This token belongs to the user", "user": None}
+    data, message = validate_form_data(byte_str, ['token'])
+    if not data:
+        response["message"] = message
+        return web.json_response(response)
+
+    user = check_auth_token(data['token'])
+    if not user:
+        response["message"] = "Token is invalid!"
+        return web.json_response(response)
+
+    else:
+        response["user"] = user.__dict__
+        return web.json_response(response)
