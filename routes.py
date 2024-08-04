@@ -43,17 +43,17 @@ def get_user_hash(data, secret_key=config.secret_key):
 
 
 def check_auth_token(token: str):
-    user = None
+    user_data, token_data = None, None
     with Session(autoflush=False, bind=engine) as db:
-        auth = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
-        if auth:
-            if (datetime.now()-auth.create_date) <= timedelta(seconds=config.token_lifetime):
-                user = auth.user
+        token_data = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
+        if token_data:
+            if (datetime.now()-token_data.create_date) <= timedelta(seconds=config.token_lifetime):
+                user_data = token_data.user
             else:
-                auth.status = 'expired'
+                token_data.status = 'expired'
                 db.commit()
 
-    return user
+    return user_data, token_data
 
 
 @routes.post('/auth')
@@ -120,7 +120,8 @@ async def servers_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    if not check_auth_token(data['token']):
+    user, token_data = check_auth_token(data['token'])
+    if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
 
@@ -135,17 +136,19 @@ async def servers_handler(request):
 @routes.get('/token')
 async def servers_handler(request):
     byte_str = await request.read()
-    response = {"message": "This token belongs to the user", "user": None}
+    response = {"message": "This token belongs to the user", "user": None, "token": None}
     data, message = validate_form_data(byte_str, ['token'])
     if not data:
         response["message"] = message
         return web.json_response(response)
 
-    user = check_auth_token(data['token'])
+    user, token_data = check_auth_token(data['token'])
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
 
     else:
-        response["user"] = dict(user.__dict__)
+        response["user"] = user.serialize()
+        response["token"] = token_data.serialize()
+        print(response)
         return web.json_response(response)
