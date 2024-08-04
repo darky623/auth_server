@@ -150,5 +150,4 @@ async def servers_handler(request):
     else:
         response["user"] = user.serialize()
         response["token"] = token_data.serialize()
-        print(response)
         return web.json_response(response)
