@@ -15,8 +15,9 @@ engine = create_engine(config.sqlite_database, echo=True)
 
 # Create test server
 def create_test_server():
+    servers = []
     with Session(autoflush=False, bind=engine) as db:
-        servers = []
+        servers.append(Server(address='127.0.0.1', name=f'#0 Localhost', create_date=datetime.now(), status='test'))
         for i in range(20):
             servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
             db.add_all(servers)
@@ -142,6 +143,12 @@ async def servers_handler(request):
     if not data:
         response["message"] = message
         return web.json_response(response)
+
+    with Session(autoflush=False, bind=engine) as db:
+        server = db.query(Server).filter(Server.address == str(request.remote)).first()
+        if not server:
+            response["message"] = "The remote host is not in the allowed list."
+            return web.json_response(response)
 
     user, token_data = check_auth_token(data['token'])
     if not user:
