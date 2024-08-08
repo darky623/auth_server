@@ -48,15 +48,15 @@ def get_user_hash(data, secret_key=config.secret_key):
 def check_auth_token(token: str):
     user_data, token_data = None, None
     with Session(autoflush=False, bind=engine) as db:
-        token_data = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
-        if token_data:
-            if (datetime.now()-token_data.create_date) <= timedelta(seconds=config.token_lifetime):
-                user_data = token_data.user
+        auth_data = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
+        if auth_data:
+            if (datetime.now()-auth_data.create_date) <= timedelta(seconds=config.token_lifetime):
+                user_data = auth_data.user
             else:
-                token_data.status = 'expired'
+                auth_data.status = 'expired'
                 db.commit()
 
-    return user_data, token_data
+    return user_data, auth_data
 
 
 @routes.post('/auth')
@@ -138,7 +138,7 @@ async def servers_handler(request):
 @routes.get('/token')
 async def servers_handler(request):
     byte_str = await request.read()
-    response = {"message": "This token belongs to the user", "user": None, "token": None}
+    response = {"message": "This token belongs to the user", "user": None, "auth": None}
     data, message = validate_form_data(byte_str, ['token'])
     if not data:
         response["message"] = message
@@ -150,12 +150,12 @@ async def servers_handler(request):
             response["message"] = "The remote host is not in the allowed list."
             return web.json_response(response)
 
-    user, token_data = check_auth_token(data['token'])
+    user, auth_data = check_auth_token(data['token'])
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
 
     else:
         response["user"] = user.serialize()
-        response["token"] = token_data.serialize()
+        response["auth"] = auth_data.serialize()
         return web.json_response(response)
