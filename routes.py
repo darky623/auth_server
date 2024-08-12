@@ -24,7 +24,7 @@ def create_test_server():
             db.commit()
 
 
-def validate_form_data(byte_str, required_fields):
+def validate_form_data(byte_str: bytes, required_fields: list):
     decoded_str = byte_str.decode('utf-8')
     try:
         data = json.loads(decoded_str)
