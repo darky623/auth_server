@@ -69,15 +69,19 @@ async def register_handler(request):
         return web.json_response(response)
 
     try:
-        if await user_service.get_user(email=data['email']):
-            response["message"] = "This username is already registered"
+        if is_valid_email(data['email']):
+            if await user_service.get_user(email=data['email']):
+                response["message"] = "This email is already registered"
+                return web.json_response(response)
+        else:
+            response["message"] = "This email is invalid"
             return web.json_response(response)
     except:
         ... # Тут по хорошему надо бросать ошибку 400
 
     try:
         if await user_service.get_user(email=data['username']):
-            response["message"] = "This email is already registered"
+            response["message"] = "This username is already registered"
             return web.json_response(response)
     except:
         ... # Тут по хорошему надо бросать ошибку 400

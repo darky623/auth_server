@@ -1,6 +1,7 @@
 import hmac
 import json
 from hashlib import sha256
+import re
 
 import config
 
@@ -26,3 +27,6 @@ def get_user_hash(data, secret_key=config.secret_key):
     return user_hash
 
 
+def is_valid_email(email):
+    email_regex = r'^[a-z0-9_.+-]+@[a-z0-9-]+\.[a-z0-9-]+$'
+    return re.match(email_regex, email) is not None
