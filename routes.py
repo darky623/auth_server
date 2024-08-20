@@ -1,48 +1,29 @@
-from models import User, AuthSession, Server
+from models import AuthSession, Server
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from hashlib import sha256
 from aiohttp import web
-import config
-import json
-import hmac
-import uuid
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from database import UnitOfWork
+from service import UserService, ServerService, CredentialsException
+from utils import *
 
 routes = web.RouteTableDef()
-engine = create_engine(config.sqlite_database, echo=True)
+engine = create_async_engine(config.sqlite_database, echo=True)
+AsyncSessionFactory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+uow = UnitOfWork(AsyncSessionFactory)
+user_service = UserService(uow)
+server_service = ServerService(uow)
 
 
 # Create test server
-def create_test_server():
+async def create_test_server():
     servers = []
-    with Session(autoflush=False, bind=engine) as db:
+    async with uow.start() as uow_session:
         servers.append(Server(address='127.0.0.1', name=f'#0 Localhost', create_date=datetime.now(), status='test'))
         for i in range(20):
             servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
-            db.add_all(servers)
-            db.commit()
-
-
-def validate_form_data(byte_str: bytes, required_fields: list):
-    decoded_str = byte_str.decode('utf-8')
-    try:
-        data = json.loads(decoded_str)
-    except json.decoder.JSONDecodeError as e:
-        return None, "It is not JSON data"
-
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return None, f"{', '.join(missing_fields)} field(s) is missing"
-    else:
-        return data, None
-
-
-def get_user_hash(data, secret_key=config.secret_key):
-    data_check_string = "\n".join([f"{key}={value}" for key, value in sorted(data.items()) if value is not None])
-    user_hash = hmac.new(sha256(secret_key.encode()).digest(), data_check_string.encode(), sha256).hexdigest()
-
-    return user_hash
+            uow_session._session.add_all(servers)
+            await uow_session._session.flush()
 
 
 def check_auth_token(token: str):
@@ -68,20 +49,14 @@ async def auth_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    user_hash = get_user_hash({"username": data['username'], "password": data['password']})
-    with Session(autoflush=False, bind=engine) as db:
-        user = db.query(User).filter(User.user_hash == user_hash).first()
-        if not user:
-            response["message"] = "Username or password is incorrect"
-            return web.json_response(response)
+    try:
+        token = await user_service.verify_user_and_generate_token(data)
+        response["token"] = token
+        response["message"] = f"User {data['username']} has been successfully authorized!"
+    except CredentialsException as e:
+        response["message"] = "Username or password is incorrect"
 
-        response["message"] = f"User {user.username} has been successfully authorized!"
-        auth_session = AuthSession(token=str(uuid.uuid1()), create_date=datetime.now())
-        user.auth_sessions.append(auth_session)
-        db.commit()
-        response["token"] = auth_session.token
-
-        return web.json_response(response)
+    return web.json_response(response)
 
 
 @routes.post('/register')
@@ -93,25 +68,26 @@ async def register_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    with Session(autoflush=False, bind=engine) as db:
-        if db.query(User).filter(User.username == str(data['username'])).first():
+    try:
+        if await user_service.get_user(email=data['email']):
             response["message"] = "This username is already registered"
             return web.json_response(response)
+    except:
+        ... # Тут по хорошему надо бросать ошибку 400
 
-        if db.query(User).filter(User.email == str(data['email'])).first():
+    try:
+        if await user_service.get_user(email=data['username']):
             response["message"] = "This email is already registered"
             return web.json_response(response)
+    except:
+        ... # Тут по хорошему надо бросать ошибку 400
 
-        user_hash = get_user_hash({'username': data['username'], 'password': data['password']})
-        auth_session = AuthSession(token=str(uuid.uuid1()), create_date=datetime.now())
-        user = User(email=data['email'], username=data['username'], user_hash=user_hash, create_date=datetime.now())
-        user.auth_sessions.append(auth_session)
-        response["message"] = f"User {user.username} has been successfully registered!"
-        db.add(user)
-        db.commit()
-        response["token"] = auth_session.token
+    token = await user_service.add(data)
 
-        return web.json_response(response)
+    response["message"] = f"User {data['username']} has been successfully registered!"
+    response["token"] = token
+
+    return web.json_response(response)
 
 
 @routes.get('/servers')
@@ -123,20 +99,18 @@ async def servers_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    user, token_data = check_auth_token(data['token'])
-    if not user:
+    if not await user_service.check_token(data['token']):
         response["message"] = "Token is invalid!"
         return web.json_response(response)
 
-    with Session(autoflush=False, bind=engine) as db:
-        for server in db.query(Server).filter(Server.status == 'active').all():
-            response["servers"].append(server.serialize())
+    for server in await server_service.get_all():
+        response["servers"].append(server.serialize())
 
     return web.json_response(response)
 
 
 @routes.get('/token')
-async def servers_handler(request):
+async def token_handler(request):
     byte_str = await request.read()
     response = {"message": "This token belongs to the user", "user": None, "auth": None}
     data, message = validate_form_data(byte_str, ['token'])

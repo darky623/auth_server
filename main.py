@@ -4,11 +4,12 @@ from models import Base
 from aiohttp import web
 import config
 import ssl
+import asyncio
 
 
 async def setup():
     print('Запуск...')
-    create_test_server()
+    # await create_test_server()
     app = web.Application()
     cors = cors_middleware(
         allow_all=True,
@@ -26,9 +27,14 @@ async def shutdown(app):
     print('Выключение...')
 
 
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+
 if __name__ == '__main__':
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    # asyncio.run(init_db())
     context = None
     if config.webhook_port == 443:
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)

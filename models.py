@@ -15,7 +15,7 @@ class User(Base):
     user_hash = Column(String)
     status = Column(String, default='active')
     create_date = Column(DateTime)
-    auth_sessions = relationship("AuthSession", back_populates="user")
+    auth_sessions = relationship("AuthSession", back_populates="user", lazy="selectin")
 
     def serialize(self):
         return {
