@@ -79,30 +79,31 @@ async def register_handler(request):
 
 @routes.get('/servers')
 async def servers_handler(request):
-    byte_str = await request.read()
     response = {"message": "Please select a server", "servers": []}
-    data, message = validate_form_data(byte_str, ['token'])
-    if not data:
-        response["message"] = message
-        return web.json_response(response)
-
-    if not await user_service.check_token(data['token']):
+    try:
+        token = get_token(request)
+        result = await user_service.check_token(token)
+        if result[0]:
+            print(result)
+            for server in await server_service.get_all():
+                response["servers"].append(server.serialize())
+        else:
+            response["message"] = "Token is invalid!"
+            return web.json_response(response)
+    except:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
-
-    for server in await server_service.get_all():
-        response["servers"].append(server.serialize())
 
     return web.json_response(response)
 
 
 @routes.get('/token')
 async def token_handler(request):
-    byte_str = await request.read()
     response = {"message": "This token belongs to the user", "user": None, "auth": None}
-    data, message = validate_form_data(byte_str, ['token'])
-    if not data:
-        response["message"] = message
+    try:
+        token = get_token(request)
+    except:
+        response["message"] = "Token is invalid!"
         return web.json_response(response)
 
     server = await server_service.get_by_address(request.remote)
@@ -110,7 +111,7 @@ async def token_handler(request):
         response["message"] = "The remote host is not in the allowed list."
         return web.json_response(response)
 
-    user, auth_data = await user_service.check_token(data['token'])
+    user, auth_data = await user_service.check_token(token)
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)

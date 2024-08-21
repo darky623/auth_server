@@ -76,7 +76,7 @@ class UserService(Service):
                     return auth_data.user, auth_data
                 else:
                     auth_data.status = 'expired'
-            return False
+            return None, None
 
 
 class ServerService(Service):

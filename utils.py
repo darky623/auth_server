@@ -30,3 +30,13 @@ def get_user_hash(data, secret_key=config.secret_key):
 def is_valid_email(email):
     email_regex = r'^[a-z0-9_.+-]+@[a-z0-9-]+\.[a-z0-9-]+$'
     return re.match(email_regex, email) is not None
+
+
+def get_token(request):
+    auth_header = request.headers.get('Authorization')
+
+    if auth_header is None or not auth_header.startswith('Bearer '):
+        raise Exception('Token is invalid')
+
+    token = auth_header[len('Bearer '):]
+    return token

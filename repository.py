@@ -82,7 +82,6 @@ class ServerRepository(Repository):
             raise ServerNotFoundError()
         raise ServerNotFoundError()
 
-
     async def get_all(self) -> list[Server]:
         stmt = select(Server).filter(Server.status == 'active')
         result = await self.session.execute(stmt)
