@@ -32,7 +32,7 @@ class AuthSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="auth_sessions")
+    user = relationship("User", back_populates="auth_sessions", lazy="selectin")
     token = Column(String)
     status = Column(String, default='active')
     create_date = Column(DateTime)

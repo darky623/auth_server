@@ -17,27 +17,10 @@ server_service = ServerService(uow)
 
 # Create test server
 async def create_test_server():
-    servers = []
-    async with uow.start() as uow_session:
-        servers.append(Server(address='127.0.0.1', name=f'#0 Localhost', create_date=datetime.now(), status='test'))
-        for i in range(20):
-            servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
-            uow_session._session.add_all(servers)
-            await uow_session._session.flush()
-
-
-def check_auth_token(token: str):
-    user_data, token_data = None, None
-    with Session(autoflush=False, bind=engine) as db:
-        auth_data = db.query(AuthSession).filter(AuthSession.token == token, AuthSession.status == 'active').first()
-        if auth_data:
-            if (datetime.now()-auth_data.create_date) <= timedelta(seconds=config.token_lifetime):
-                user_data = auth_data.user
-            else:
-                auth_data.status = 'expired'
-                db.commit()
-
-    return user_data, auth_data
+    servers = [Server(address='127.0.0.1', name=f'#0 Localhost', create_date=datetime.now(), status='test')]
+    for i in range(20):
+        servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
+        await server_service.add_many(servers)
 
 
 @routes.post('/auth')
@@ -122,13 +105,12 @@ async def token_handler(request):
         response["message"] = message
         return web.json_response(response)
 
-    with Session(autoflush=False, bind=engine) as db:
-        server = db.query(Server).filter(Server.address == str(request.remote)).first()
-        if not server:
-            response["message"] = "The remote host is not in the allowed list."
-            return web.json_response(response)
+    server = await server_service.get_by_address(request.remote)
+    if not server:
+        response["message"] = "The remote host is not in the allowed list."
+        return web.json_response(response)
 
-    user, auth_data = check_auth_token(data['token'])
+    user, auth_data = await user_service.check_token(data['token'])
     if not user:
         response["message"] = "Token is invalid!"
         return web.json_response(response)

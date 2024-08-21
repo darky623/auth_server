@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from database import UnitOfWork
 from models import User, AuthSession, Server
-from repository import UserNotFoundError
+from repository import UserNotFoundError, ServerNotFoundError
 from utils import *
 
 
@@ -68,23 +68,33 @@ class UserService(Service):
         user.auth_sessions.append(auth_session)
         return auth_session.token
 
-    async def check_token(self, token: str) -> bool:
+    async def check_token(self, token: str):
         async with self.uow.start() as uow_session:
             auth_data = await uow_session.auth_sessions.get_token(token)
             if auth_data:
                 if (datetime.now() - auth_data.create_date) <= timedelta(seconds=config.token_lifetime):
-                    return True
+                    return auth_data.user, auth_data
                 else:
                     auth_data.status = 'expired'
             return False
-
-
 
 
 class ServerService(Service):
     async def add(self, server: Server):
         async with self.uow.start() as uow_session:
             await uow_session.servers.add(server)
+
+    async def add_many(self, servers: list[Server]):
+        async with self.uow.start() as uow_session:
+            await uow_session.servers.add_many(servers)
+
+    async def get_by_address(self, address: str) -> Server:
+        async with self.uow.start() as uow_session:
+            try:
+                server = await uow_session.servers.get(address=address)
+                return server
+            except ServerNotFoundError:
+                ...
 
     async def get_all(self) -> list[Server]:
         async with self.uow.start() as uow_session:

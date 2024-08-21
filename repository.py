@@ -69,6 +69,19 @@ class ServerRepository(Repository):
 
     async def add_many(self, servers: list[Server]):
         self.session.add_all(servers)
+        await self.session.flush()
+
+    async def get(self, **kwargs) -> Server:
+        try:
+            stmt = select(Server).filter_by(**kwargs)
+            result = await self.session.execute(stmt)
+            server = result.scalars().first()
+            if server:
+                return server
+        except:
+            raise ServerNotFoundError()
+        raise ServerNotFoundError()
+
 
     async def get_all(self) -> list[Server]:
         stmt = select(Server).filter(Server.status == 'active')
@@ -88,3 +101,11 @@ class UserNotFoundError(Exception):
         self.user_id = user_id
         self.message = f"User with id {user_id} not found."
         super().__init__(self.message)
+
+
+class ServerNotFoundError(Exception):
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+        self.message = f"Server not found."
+        super().__init__(self.message)
+
