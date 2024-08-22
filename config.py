@@ -1,4 +1,4 @@
-sqlite_database = "sqlite:///auth.db"
+sqlite_database = "sqlite+aiosqlite:///auth.db"
 
 secret_key = "secret_key"
 
