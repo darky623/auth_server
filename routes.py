@@ -1,3 +1,4 @@
+import os
 from models import AuthSession, Server
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -21,6 +22,16 @@ async def create_test_server():
     for i in range(20):
         servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
         await server_service.add_many(servers)
+
+
+@routes.get('/auth')
+async def auth_frontend_handler(request):
+    try:
+        with open(FRONTEND_FILE_PATH, 'r') as f:
+            content = f.read()
+        return web.Response(text=content, content_type='text/html')
+    except FileNotFoundError:
+        return web.Response(text="HTML файл не найден", status=404)
 
 
 @routes.post('/auth')
