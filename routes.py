@@ -15,6 +15,9 @@ uow = UnitOfWork(AsyncSessionFactory)
 user_service = UserService(uow)
 server_service = ServerService(uow)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_FILE_PATH = os.path.join(BASE_DIR, 'frontend.html')
+
 
 # Create test server
 async def create_test_server():
