@@ -19,7 +19,7 @@ server_service = ServerService(uow)
 async def create_test_server():
     servers = [Server(address='127.0.0.1', name=f'#0 Localhost', create_date=datetime.now(), status='test')]
     for i in range(20):
-        servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
+        servers.append(Server(address='lotw-api.clava.space', name=f'#{i+1} Alpha', create_date=datetime.now()))
         await server_service.add_many(servers)
 
 
