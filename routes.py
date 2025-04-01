@@ -5,7 +5,9 @@ from aiohttp import web
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from database import UnitOfWork
 from service import UserService, ServerService, CredentialsException
+from packaging.version import Version
 from utils import *
+import config
 import os
 
 routes = web.RouteTableDef()
@@ -17,6 +19,7 @@ server_service = ServerService(uow)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_FILE_PATH = os.path.join(BASE_DIR, 'frontend.html')
 FRONTEND_REG_FILE_PATH = os.path.join(BASE_DIR, 'frontend-reg.html')
+min_build_version = Version(config.min_build_version)
 
 # Create test server
 async def create_test_server():
@@ -50,9 +53,20 @@ async def reg_frontend_handler(request):
 async def auth_handler(request):
     byte_str = await request.read()
     response = {"message": None, "token": None}
-    data, message = validate_form_data(byte_str, ['username', 'password'])
+    current_build_version = Version("0")
+    data, message = validate_form_data(byte_str, ['username', 'password', 'build_version'])
     if not data:
         response["message"] = message
+        return web.json_response(response)
+
+    try:
+        current_build_version = Version(data['build_version'])
+    except Exception as e:
+        response["message"] = "Parameter build_version is not valid"
+        return web.json_response(response)
+
+    if current_build_version < min_build_version:
+        response["message"] = "The build version is not up to date"
         return web.json_response(response)
 
     try:
@@ -72,6 +86,10 @@ async def register_handler(request):
     data, message = validate_form_data(byte_str, ['email', 'username', 'password'])
     if not data:
         response["message"] = message
+        return web.json_response(response)
+
+    if not config.allow_user_registration:
+        response["message"] = "Registration of new users is temporarily unavailable."
         return web.json_response(response)
 
     try:
