@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from database import UnitOfWork
 from service import UserService, ServerService, CredentialsException
 from utils import *
+import os
 
 routes = web.RouteTableDef()
 engine = create_async_engine(config.sqlite_database, echo=True)
@@ -13,14 +14,36 @@ AsyncSessionFactory = async_sessionmaker(bind=engine, class_=AsyncSession, expir
 uow = UnitOfWork(AsyncSessionFactory)
 user_service = UserService(uow)
 server_service = ServerService(uow)
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_FILE_PATH = os.path.join(BASE_DIR, 'frontend.html')
+FRONTEND_REG_FILE_PATH = os.path.join(BASE_DIR, 'frontend-reg.html')
 
 # Create test server
 async def create_test_server():
     servers = [Server(address='127.0.0.1', name=f'#0 Localhost', create_date=datetime.now(), status='test')]
     for i in range(20):
-        servers.append(Server(address='31.129.54.121', name=f'#{i+1} Alpha', create_date=datetime.now()))
+        servers.append(Server(address='lotw-api.clava.space', name=f'#{i+1} Alpha', create_date=datetime.now()))
         await server_service.add_many(servers)
+
+@routes.get('/auth')
+async def auth_frontend_handler(request):
+    try:
+        with open(FRONTEND_FILE_PATH, 'r') as f:
+            content = f.read()
+        return web.Response(text=content, content_type='text/html')
+    except FileNotFoundError:
+        return web.Response(text="HTML файл не найден", status=404)
+
+
+@routes.get('/reg')
+async def reg_frontend_handler(request):
+    try:
+        with open(FRONTEND_REG_FILE_PATH, 'r') as f:
+            content = f.read()
+        return web.Response(text=content, content_type='text/html')
+    except FileNotFoundError:
+        return web.Response(text="HTML файл не найден", status=404)
+
 
 
 @routes.post('/auth')
