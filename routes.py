@@ -122,15 +122,8 @@ async def register_handler(request):
 async def servers_handler(request):
     response = {"message": "Please select a server", "servers": []}
     try:
-        token = get_token(request)
-        result = await user_service.check_token(token)
-        if result[0]:
-            print(result)
-            for server in await server_service.get_all():
-                response["servers"].append(server.serialize())
-        else:
-            response["message"] = "Token is invalid!"
-            return web.json_response(response)
+        for server in await server_service.get_all():
+            response["servers"].append(server.serialize())
     except:
         response["message"] = "Token is invalid!"
         return web.json_response(response)
