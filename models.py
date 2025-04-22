@@ -52,6 +52,7 @@ class Server(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     address = Column(String)
+    url = Column(String)
     name = Column(String)
     locale = Column(String, default='RU')
     max_players = Column(Integer, default=1000)
@@ -61,7 +62,7 @@ class Server(Base):
     def serialize(self):
         return {
             'id': self.id,
-            'address': self.address,
+            'url': self.url,
             'name': self.name,
             'locale': self.locale,
             'max_players': self.max_players,
